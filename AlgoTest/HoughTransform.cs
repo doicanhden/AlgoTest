@@ -16,6 +16,13 @@ namespace AlgoTest
     protected int _Width, _Height;
     protected byte[,] _Mono;
 
+    public int Rho
+    {
+      get
+      {
+        return ((int)((_Width + _Height) * Math.Sqrt(2) / 2));
+      }
+    }
     public static double Deg2Rad(double angle)
     {
       return (Math.PI * angle / 180.0);
@@ -28,12 +35,13 @@ namespace AlgoTest
       _Height = mono.GetLength(1);
     }
 
-    public void DrawRotation(int rhos, Line line, ref Bitmap bitmap)
+    public void DrawRotation(int theta, ref Bitmap bitmap)
     {
-      double theta = Deg2Rad(180 - line.Theta);
-      double sinTheta = Math.Sin(theta);
-      double cosTheta = Math.Cos(theta);
-      int d = line.Radius - rhos;
+      double thetaRad = Deg2Rad(180 - theta);
+      double sinTheta = Math.Sin(thetaRad);
+      double cosTheta = Math.Cos(thetaRad);
+
+      int d = bitmap.Height / 2;
       for (int x = 0; x < bitmap.Width; x++)
       {
         int y = (int)((cosTheta * x + d) / sinTheta);
@@ -44,9 +52,9 @@ namespace AlgoTest
 
     public int DetectAngle(int angleLoLimit = 60, int angleHiLimit = 120)
     {
-      int by = _Height / 4; // 2 / 4 of the height
+      int by = 0; // 2 / 4 of the height
       int ey = _Height - by;
-      int bx = _Width / 3;  // 1 / 3 of the width; 
+      int bx = 0;  // 1 / 3 of the width; 
       int ex = _Width - bx;
 
       Accumulator accu = new Accumulator(angleLoLimit, angleHiLimit);
@@ -63,7 +71,7 @@ namespace AlgoTest
       }
 
       Line line = new Line();
-      if (accu.Strongest(ref line))
+      if (accu.Strongest(accu.Rho / 7, accu.Rho - accu.Rho / 7, ref line))
         return (line.Theta);
 
       return (-1);

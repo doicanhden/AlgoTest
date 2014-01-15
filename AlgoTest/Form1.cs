@@ -34,30 +34,31 @@ namespace AlgoTest
       Bitmap image = new Bitmap(pictureBox1.Image);
 
       byte[,] mono = ImageUtility.ConvertToBW(image);
-      
-      WhiteStrips h = new WhiteStrips(mono);
-      Line line = new Line();
 
-      h.Center(ref line);
-      label2.Text = (180 - line.Theta).ToString();
-
-      LockBitmap bm = new LockBitmap(image);
-      bm.LockBits();
-      for (int y = 0; y < mono.GetLength(1); ++y)
+      HoughTransform hough = new HoughTransform(mono);
+      int angle = hough.DetectAngle();
+      if (angle > 0)
       {
-        for (int x = 0; x < mono.GetLength(0); ++x) 
+        LockBitmap bm = new LockBitmap(image);
+        bm.LockBits();
+        for (int y = 0; y < mono.GetLength(1); ++y)
         {
-          bm.SetPixel(x, y, mono[x, y] == 0 ? Color.Black : Color.White);
+          for (int x = 0; x < mono.GetLength(0); ++x) 
+          {
+            bm.SetPixel(x, y, mono[x, y] == 0 ? Color.Black : Color.White);
+          }
         }
+        bm.UnlockBits();
+
+        label2.Text = (angle).ToString();
+        hough.DrawRotation(angle, ref image);
+
+        DetectGrids grids = new DetectGrids(mono, hough.Rho, angle);
+        grids.DetectRectangleAround(1);
+
+        grids.DrawRect(new Rect(grids.LeftTop, grids.LeftBottom, grids.RightTop, grids.RightBottom), Color.Red, ref image);
       }
-      bm.UnlockBits();
-
-      h.DrawRotation(line, ref image);
-      if (h.DetectRect(line.Theta))
-        h.DrawRect(Color.Red, ref image);
-
       pictureBox1.Image = image;
-
     }
   }
 

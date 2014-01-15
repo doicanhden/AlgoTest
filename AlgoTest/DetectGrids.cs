@@ -13,65 +13,22 @@ namespace AlgoTest
       LB = other.LB;
       RB = other.RB;
     }
-
+    public Rect(Point leftTop, Point leftBottom, Point rightTop, Point rightBottom)
+    {
+      LT = leftTop;
+      RT = rightTop;
+      LB = leftBottom;
+      RB = rightBottom;
+    }
     public Point LT;
     public Point RT;
     public Point LB;
     public Point RB;
   }
 
-  public class Angles
-  {
-    public double SinTheta1  { get; private set; }
-    public double CosTheta1  { get; private set; }
-    public double CosDivSin1 { get; private set; }
 
-    public double SinTheta2  { get; private set; }
-    public double CosTheta2  { get; private set; }
-    public double CosDivSin2 { get; private set; }
 
-    public Angles(int theta)
-    {
-      SinTheta1 = Math.Sin(HoughTransform.Deg2Rad(theta));
-      CosTheta1 = Math.Cos(HoughTransform.Deg2Rad(theta));
-      CosDivSin1 = CosTheta1 / SinTheta1;
-
-      int theta2 = 180 - theta;
-      SinTheta2 = Math.Sin(HoughTransform.Deg2Rad(theta2));
-      CosTheta2 = Math.Cos(HoughTransform.Deg2Rad(theta2));
-      CosDivSin2 = CosTheta2 / SinTheta2;
-    }
-  }
-
-  public class Table
-  {
-    private byte[,] _Mono;
-    private List<Line> _Row;
-    private List<Line> _Col;
-    private Rect _Range;
-    public Rect Range
-    {
-      get { return (_Range); }
-      set
-      { 
-
-      }
-    }
-
-    public Table(byte[,] mono, Rect rect)
-    {
-      _Mono = mono;
-    }
-
-    public bool DetectGrids(Angles anges, HoughTransform _detect)
-    {
-      int offBottom = LB.Y + (LT.Y - LB.Y) / 9;
-      int offTop = LT.Y - (LT.Y - LB.Y) / 9;
-      return (true);
-    }
-  }
-
-  public class WhiteStrips
+  public class DetectGrids
   {
     private double sinTheta1;
     private double cosTheta1;
@@ -79,256 +36,241 @@ namespace AlgoTest
     private double sinTheta2;
     private double cosTheta2;
     private double cosDivSin2;
+    private byte[,] _Mono;
     private int _Height;
     private int _Width;
+    private int _Rhos;
+    private int _Left, _Top, _Right, _Bottom;
+    public Point LeftTop     { get; private set; }
+    public Point LeftBottom  { get; private set; }
+    public Point RightTop    { get; private set; }
+    public Point RightBottom { get; private set; }
 
-    public int[] WhiteH { get; private set; }
-    public int[] WhiteV { get; private set; }
-
-
-    public WhiteStrips(byte[,] mono)
+    static int MaxInRange(int[] array, int loLimit, int hiLimit, bool reverse = false)
     {
-      sinTheta1 = cosTheta1 = cosDivSin1 = 0;
-      sinTheta2 = cosTheta2 = cosDivSin2 = 0;
-    }
-
-    public bool DetectWhiteRegion(int theta, int rect = 1)
-    {
-      int threshold = (rect * 2 + 1) * (rect * 2 + 1)/2;
-
-      int x, y, rho;
-      int beg, end;
-      int sum;
-      int maxValue;
-
-      WhiteV = new int[_Width];      // vertical uninterrupted white pixel counter
-      WhiteH = new int[_Height];     
-      ////////////////////////////////////
-      // HORIZONTAL white strips detection
-      beg = _Rhos;
-      end = _Rhos + (int)(_Height * sinTheta2);
-      for (rho = beg; rho < end; rho += 3) // todo: try with 5 for performance
+      int max, maxIdx;
+      if (reverse)
       {
-        // sweep down->up with parallel lines and count white pixels. Our goal is to find longest uninterrupted white strip line. Strip consists of rectangles 3x3 pixels.
-        int whiteLen = 0;
-        int longestwhiteLen = 0;
-        for (x = rect; x < _Width - rect; x += 2)
+        max = array[hiLimit];
+        maxIdx = hiLimit;
+        for (int i = hiLimit - 1; i > loLimit; --i)
         {
-          y = (int)((x * cosTheta2 + rho - _Rhos) / sinTheta2);
-          if (y >= rect && y < _Height - rect)
+          if (max < array[i])
           {
-            sum = 0;
-            for (int yy = y - rect; yy <= y + rect; ++yy) 
-            {
-              for (int xx = x - rect; xx <= x + rect; ++xx)
-              {
-                if (_Mono[xx, yy] == 0)
-                  ++sum;
-              }
-            }
-            
-            if (threshold > sum)  // white
-              ++whiteLen;
-            else        // black
-            {
-              if (longestwhiteLen < whiteLen)
-                longestwhiteLen = whiteLen;
-              whiteLen = 0;
-            }
+            max = array[i];
+            maxIdx = i;
           }
-          if (longestwhiteLen < whiteLen)
-            longestwhiteLen = whiteLen;
-        }
-        WhiteH[rho - beg] = longestwhiteLen;
-      }
-      
-      ////////////////////////////////////////
-      // detect 2 peaks of white horizontal strips
-      maxValue = 0;
-      for (y = 1 + _Height / 2; y > 0; y--)
-      {
-        if (maxValue < WhiteH[y])
-        {
-          maxValue = WhiteH[y];
-          bottom = y + beg;
         }
       }
-
-      maxValue = 0;
-      for (y = _Height / 2; y < _Height - 1; ++y)
+      else
       {
-        if (maxValue < whiteH[y])
+        max = array[loLimit];
+        maxIdx = loLimit;
+        for (int i = loLimit + 1; i < hiLimit; ++i)
         {
-          maxValue = whiteH[y];
-          top = y + beg;
-        }
-      }
-
-      //////////////////////////////////
-      // VERTICAL white strips detection
-      beg = _Rhos;
-      end = _Rhos + (int)(_Width * sinTheta1);
-      
-      for (rho = beg; rho < end; rho += 3)      // todo: try 5 for performance
-      {
-        int whiteLen = 0;
-        int longestwhiteLen = 0;
-        
-        int yD = (int)(((rho - beg) * cosTheta2 + bottom - _Rhos) / sinTheta2);
-        int yU = yD + top - bottom;
-        
-        for (y = yD; y < yU; y += 2)
-        {
-          x = (int)((y * cosTheta1 + rho - _Rhos) / sinTheta1);
-          if (x >= rect && x < _Width - rect && y >= rect && y < _Height - rect)
+          if (max < array[i])
           {
-            sum = 0;
-            for (int yy = y - rect; yy <= y + rect; ++yy)
-            {
-              for (int xx = x - rect; xx <= x + rect; ++xx)
-              {
-                if (_Mono[xx, yy] == 0)
-                  ++sum;
-              }
-            }
-
-            if (threshold > sum)  // white
-              ++whiteLen;
-            else        // black
-            {
-              if (longestwhiteLen < whiteLen)
-                longestwhiteLen = whiteLen;
-              whiteLen = 0;
-            }
+            max = array[i];
+            maxIdx = i;
           }
-
-          if (longestwhiteLen < whiteLen)
-            longestwhiteLen = whiteLen;
-        }
-        whiteV[rho - beg] = longestwhiteLen;
-      }
-
-      // detect 2 peaks of white vertical strips
-      maxValue = 0;
-      for (x = 1 + _Width / 10; x > 0; --x)
-      {
-        if (maxValue < whiteV[x])
-        {
-          maxValue = whiteV[x];
-          left = x + beg;
         }
       }
 
-      maxValue = 0;
-      for (x = _Width / 10; x < _Width - 1; ++x)
-      {
-        if (maxValue < whiteV[x])
-        {
-          maxValue = whiteV[x];
-          right = x + beg;
-        }
-      }
+      return (maxIdx);
     }
 
-    public void DrawRect(Color color, ref Bitmap bitmap)
+    public DetectGrids(byte[,] mono, int rhos, int theta)
     {
+      _Width = mono.GetLength(0);
+      _Height = mono.GetLength(1);
 
-      int x, y;
-
-      // left line
-      for (y = lb.Y; y < lt.Y; ++y)
-      {
-        x = (int)(y * cosDivSin1 + (left - _Rhos) / sinTheta1);
-        if (x > 0 && x < _Width && y > 0 && y < _Height)
-          bitmap.SetPixel(x, y, color);
-      }
-      
-      // bottom line
-      for (x = lb.X; x < rb.X; ++x)
-      {
-        y = (int)(x * cosDivSin2 + (bottom - _Rhos) / sinTheta2);
-        if (x > 0 && x < _Width && y > 0 && y < _Height)
-          bitmap.SetPixel(x, y, color);
-      }
-      
-      // right line
-      for (y = rb.Y; y < rt.Y; ++y)
-      {
-        x = (int)(y * cosDivSin1 + (right - _Rhos) / sinTheta1);
-        if (x > 0 && x < _Width && y > 0 && y < _Height)
-          bitmap.SetPixel(x, y, color);
-      }
-      // top line
-      for (x = lt.X; x < rt.X; ++x)
-      {
-        y = (int)(x * cosDivSin2 + (top - _Rhos) / sinTheta2);
-        if (x > 0 && x < _Width && y > 0 && y < _Height)
-          bitmap.SetPixel(x, y, color);
-      }
-    }
-    public Rect CalcIntersections(int rhos, int left, int top, int right, int bottom)
-    {
-      ///////////////////////////////
-      // calculate line intersections points of white rectangle
-      Rect rect = new Rect();
-      double temp = (1 - cosDivSin1 * cosDivSin2);
-
-      double c1 = (left - rhos) / sinTheta1;
-      double c2 = (top - rhos) / sinTheta2;
-      rect.LT.X = (int)((c2 * cosDivSin1 + c1) / temp);
-      rect.LT.Y = (int)(rect.LT.X * cosDivSin2 + c2);
-
-      c2 = (bottom - rhos) / sinTheta2;
-      rect.LB.X = (int)((c2 * cosDivSin1 + c1) / temp);
-      rect.LB.Y = (int)(rect.LB.X * cosDivSin2 + c2);
-
-      c1 = (right - rhos) / sinTheta1;
-      rect.RB.X = (int)((c2 * cosDivSin1 + c1) / temp);
-      rect.RB.Y = (int)(rect.RB.X * cosDivSin2 + c2);
-
-      c2 = (top - rhos) / sinTheta2;
-      rect.RT.X = (int)((c2 * cosDivSin1 + c1) / temp);
-      rect.RT.Y = (int)(rect.RT.X * cosDivSin2 + c2);
-
-      return (rect);
-    }
-
-    public bool DetectRect(int theta)
-    {
       sinTheta1 = Math.Sin(Deg2Rad(theta));
       cosTheta1 = Math.Cos(Deg2Rad(theta));
+      cosDivSin1 = cosTheta1 / sinTheta1;
 
       int theta2 = 180 - theta;
       sinTheta2 = Math.Sin(Deg2Rad(theta2));
       cosTheta2 = Math.Cos(Deg2Rad(theta2));
-      cosDivSin1 = cosTheta1 / sinTheta1;
       cosDivSin2 = cosTheta2 / sinTheta2;
 
-      DetectWhiteRegion(1);
+      _Rhos = rhos;
+      _Mono = mono;
+
+    }
+    
+    public static double Deg2Rad(double angle)
+    {
+      return (Math.PI * angle / 180.0);
+    }
+    private static int NBlackPixels(byte[,] mono, int x, int y, int rect)
+    {
+      int result = 0;
+      for (int j = -rect; j <= rect; ++j) 
+      {
+        for (int i = -rect; i <= rect; ++i)
+        {
+          if (mono[x + i, y + j] == 0)
+            ++result;
+        }
+      }
+      return (result);
+    }
+    public void DetectRectangleAround(int rect = 1)
+    {
+      int[] white;
+      int nWhiteSpace, nWhiteSpaceMax = 0;
+
+      int x, y;
+      int step, size;
+      int threshold = (rect * 2 + 1) * (rect * 2 + 1) / 3;
+
+
+
+      ////////////////////////////////////
+      // HORIZONTAL white strips detection
+      step = 3; // todo: try 5 for performance
+      size = (int)(_Height * sinTheta2) / step;
+      white = new int[size];
+
+      for (int rho = 0; rho < size; ++rho)
+      {
+        // sweep down->up with parallel lines and count white pixels.
+        // Our goal is to find longest uninterrupted white strip line.
+        // Strip consists of rectangles 3x3 pixels.
+        nWhiteSpace = 0;
+        nWhiteSpaceMax = 0;
+        for (x = rect; x < _Width - rect; x += 4)
+        {
+          y = (int)((x * cosTheta2 + rho * step) / sinTheta2);
+          if (y >= rect && y < _Height - rect)
+          {
+            if (threshold > NBlackPixels(_Mono, x, y, rect))
+              ++nWhiteSpace;
+            else
+            {
+              if (nWhiteSpaceMax < nWhiteSpace)
+                nWhiteSpaceMax = nWhiteSpace;
+              nWhiteSpace = 0;
+            }
+          }
+
+          if (nWhiteSpaceMax < nWhiteSpace)
+            nWhiteSpaceMax = nWhiteSpace;
+        }
+        white[rho] = nWhiteSpaceMax;
+      }
+
+      ////////////////////////////////////////
+      // detect 2 peaks of white horizontal strips
+      _Top = _Rhos + MaxInRange(white, size / 2, size - 1) * step;
+      _Bottom = _Rhos +  MaxInRange(white, 0, size / 2 - 1 , true) * step;
+
+
+
+      //////////////////////////////////
+      // VERTICAL white strips detection
+      int yLo, yHi, yOffset = _Bottom - _Rhos;
+
+      step = 3; // todo: try 5 for performance
+      size = (int)(_Width * sinTheta1) / step;
+      white = new int[size];
+
+      for (int rho = 0; rho < size; ++rho)
+      {
+        nWhiteSpace = 0;
+        nWhiteSpaceMax = 0;
+
+        yLo = (int)((rho * step * cosTheta2 + yOffset) / sinTheta2);
+        yHi = yLo + _Top - _Bottom;
+        
+        for (y = yLo; y < yHi; y += 4)
+        {
+          x = (int)((y * cosTheta1 + rho * step) / sinTheta1);
+          if (x >= rect && x < _Width - rect && y >= rect && y < _Height - rect)
+          {
+            if (threshold > NBlackPixels(_Mono, x, y, rect))
+              ++nWhiteSpace;
+            else
+            {
+              if (nWhiteSpaceMax < nWhiteSpace)
+                nWhiteSpaceMax = nWhiteSpace;
+              nWhiteSpace = 0;
+            }
+          }
+
+          if (nWhiteSpaceMax < nWhiteSpace)
+            nWhiteSpaceMax = nWhiteSpace;
+        }
+        white[rho] = nWhiteSpaceMax;
+      }
+
+      // detect 2 peaks of white vertical strips
+      _Right = _Rhos + MaxInRange(white, size / 2, size - 1) * step;
+      _Left = _Rhos + MaxInRange(white, 0, size / 2 - 1, true) * step;
+
+
+
 
       ///////////////////////////////
       // calculate line intersections points of white rectangle
       double temp = (1 - cosDivSin1 * cosDivSin2);
       double c1, c2;
 
-      c1 = (left - _Rhos) / sinTheta1;
-      c2 = (top - _Rhos) / sinTheta2;
-      lt.X = (int)((c2 * cosDivSin1 + c1) / temp);
-      lt.Y = (int)(lt.X * cosDivSin2 + c2);
-  
-      c2 = (bottom - _Rhos) / sinTheta2;
-      lb.X = (int)((c2 * cosDivSin1 + c1) / temp);
-      lb.Y = (int)(lb.X * cosDivSin2 + c2);
-      
-      c1 = (right - _Rhos) / sinTheta1;
-      rb.X = (int)((c2 * cosDivSin1 + c1) / temp);
-      rb.Y = (int)(rb.X * cosDivSin2 + c2);
-  
-      c2 = (top - _Rhos) / sinTheta2;
-      rt.X = (int)((c2 * cosDivSin1 + c1) / temp);
-      rt.Y = (int)(rt.X * cosDivSin2 + c2);
+      c1 = (_Left - _Rhos) / sinTheta1;
+      c2 = (_Top - _Rhos) / sinTheta2;
+      x = (int)((c2 * cosDivSin1 + c1) / temp);
+      y = (int)(x * cosDivSin2 + c2);
+      LeftTop = new Point(x, y);
 
-      return (true);
+      c2 = (_Bottom - _Rhos) / sinTheta2;
+      x = (int)((c2 * cosDivSin1 + c1) / temp);
+      y = (int)(x * cosDivSin2 + c2);
+      LeftBottom = new Point(x, y);
+      
+      c1 = (_Right - _Rhos) / sinTheta1;
+      x = (int)((c2 * cosDivSin1 + c1) / temp);
+      y = (int)(x * cosDivSin2 + c2);
+      RightBottom = new Point(x, y);
+
+      c2 = (_Top - _Rhos) / sinTheta2;
+      x = (int)((c2 * cosDivSin1 + c1) / temp);
+      y = (int)(x * cosDivSin2 + c2);
+      RightTop = new Point(x, y);
+    }
+
+    public void DrawRect(Rect rect, Color color, ref Bitmap bitmap)
+    {
+
+      int x, y;
+
+      // left line
+      for (y = rect.LB.Y; y < rect.LT.Y; ++y)
+      {
+        x = (int)(y * cosDivSin1 + (_Left - _Rhos) / sinTheta1);
+        if (x > 0 && x < _Width && y > 0 && y < _Height)
+          bitmap.SetPixel(x, y, color);
+      }
+      // bottom line
+      for (x = rect.LB.X; x < rect.RB.X; ++x)
+      {
+        y = (int)(x * cosDivSin2 + (_Bottom - _Rhos) / sinTheta2);
+        if (x > 0 && x < _Width && y > 0 && y < _Height)
+          bitmap.SetPixel(x, y, color);
+      }
+      // right line
+      for (y = rect.RB.Y; y < rect.RT.Y; ++y)
+      {
+        x = (int)(y * cosDivSin1 + (_Right - _Rhos) / sinTheta1);
+        if (x > 0 && x < _Width && y > 0 && y < _Height)
+          bitmap.SetPixel(x, y, color);
+      }
+      // top line
+      for (x = rect.LT.X; x < rect.RT.X; ++x)
+      {
+        y = (int)(x * cosDivSin2 + (_Top - _Rhos) / sinTheta2);
+        if (x > 0 && x < _Width && y > 0 && y < _Height)
+          bitmap.SetPixel(x, y, color);
+      }
     }
   }
 }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace AlgoTest
 {
-  private class Accumulator
+  public class Accumulator
   {
     private int[,] _Votes;
     private int _DeltaTheta;
@@ -30,7 +30,7 @@ namespace AlgoTest
       {
         _Size  = value;
         _Rho   = (int)(value * Math.Sqrt(2));
-        _Votes = new int[_DeltaTheta, _Rho];
+        _Votes = new int[_DeltaTheta + 1, _Rho];
       }
     }
     public int Rho
@@ -56,20 +56,13 @@ namespace AlgoTest
     }
     public void Add(int x, int y)
     {
-      try
+      int radius;
+      double thetaRad;
+      for (int delta = 0; delta <= _DeltaTheta; ++delta)
       {
-        int radius;
-        double thetaRad;
-        for (int delta = 0; delta <= _DeltaTheta; ++delta)
-        {
-          thetaRad = Math.PI * (delta + Theta1) / 180.0;
-          radius = (int)(x * Math.Cos(thetaRad) + y * Math.Sin(thetaRad) + _Offset);
-          ++_Votes[delta, radius];
-        }
-      }
-      catch (Exception)
-      {
-
+        thetaRad = Math.PI * (delta + Theta1) / 180.0;
+        radius = (int)(x * Math.Cos(thetaRad) + y * Math.Sin(thetaRad) + _Offset);
+        ++_Votes[delta, radius];
       }
     }
     public bool Strongest(ref Line line)
@@ -79,27 +72,22 @@ namespace AlgoTest
     public bool Strongest(int rhoLoLimit, int rhoHiLimit, ref Line line)
     {
       int vote = -1;
-      try
+
+      for (int rho = rhoLoLimit; rho < rhoHiLimit; ++rho)
       {
-        for (int rho = rhoLoLimit; rho < rhoHiLimit; ++rho)
+        for (int delta = 0; delta <= _DeltaTheta; ++delta)
         {
-          for (int delta = 0; delta <= _DeltaTheta; ++delta)
+          if (_Votes[delta, rho] > vote)
           {
-            if (_Votes[delta, rho] > vote)
-            {
-              vote = _Votes[delta, rho];
-              line.Theta  = Theta1 + delta;
-              line.Radius = rho;
-            }
+            vote = _Votes[delta, rho];
+            line.Theta  = Theta1 + delta;
+            line.Radius = rho;
           }
         }
       }
-      catch (Exception)
-      {
-        vote = 0;
-      }
 
-      if (vote <= 0)
+
+      if (vote < 0)
         return (false);
 
       return (true);
